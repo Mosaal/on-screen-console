@@ -11,7 +11,6 @@ const App: FC = () => {
     const interval = setInterval(() => {
       setCounter(counter + 1);
       writeDataToConsole({ lmao: counter });
-      console.log(counter);
     }, 1000);
     return () => {
       clearInterval(interval);

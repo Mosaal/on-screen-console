@@ -1,4 +1,6 @@
+import ReactDOM from "react-dom";
 import React, { FC, useEffect, useState } from "react";
+
 import tw, { styled } from "twin.macro";
 
 import Draggable, { DraggableData, DraggableEvent } from "react-draggable";
@@ -51,6 +53,13 @@ const OnScreenConsole: FC<OnScreenConsoleProps> = ({
   };
 
   useEffect(() => {
+    if (!document.getElementById("on-screen-console-portal")) {
+      const portal = document.createElement("div");
+      portal.id = "on-screen-console-portal";
+      portal.classList.add("fixed", "inset-0", "bg-transparent");
+      document.body.appendChild(portal);
+    }
+
     document.addEventListener(EVENT_NAME, updateData as EventListener);
     return () => {
       document.removeEventListener(EVENT_NAME, updateData as EventListener);
@@ -85,105 +94,110 @@ const OnScreenConsole: FC<OnScreenConsoleProps> = ({
     setCurrentSize({ width: data.size.width, height: data.size.height });
   };
 
-  return (
-    <Draggable
-      handle=".handle"
-      position={currentPosition}
-      onStart={() => setIsDragging(true)}
-      onStop={() => setIsDragging(false)}
-      // @ts-ignore
-      onDrag={handleDragging}
-    >
-      <ResizableBox
-        width={currentSize.width} // @TODO: customizable
-        height={currentSize.height} // @TODO: customizable
-        minConstraints={[minimumSize.width, minimumSize.height]} // @TODO: customizable
-        onResizeStart={() => setIsResizing(true)}
-        onResizeStop={() => setIsResizing(false)}
-        handle={<ResizeHandle active={isResizing} />}
-        onResize={handleResizing}
-      >
-        <div tw="flex flex-col w-full h-full border rounded shadow-xl border-gray-300 overflow-hidden">
-          <div
-            className="handle"
-            css={[
-              tw`flex flex-row items-center justify-between px-4 py-2 border-b border-gray-300`,
-              isDragging
-                ? tw`hover:cursor-[grabbing]`
-                : tw`hover:cursor-[grab]`,
-            ]}
+  const portalEl = document.getElementById("on-screen-console-portal");
+  return portalEl
+    ? ReactDOM.createPortal(
+        <Draggable
+          handle=".handle"
+          bounds="#on-screen-console-portal"
+          position={currentPosition}
+          onStart={() => setIsDragging(true)}
+          onStop={() => setIsDragging(false)}
+          // @ts-ignore
+          onDrag={handleDragging}
+        >
+          <ResizableBox
+            width={currentSize.width} // @TODO: customizable
+            height={currentSize.height} // @TODO: customizable
+            minConstraints={[minimumSize.width, minimumSize.height]} // @TODO: customizable
+            onResizeStart={() => setIsResizing(true)}
+            onResizeStop={() => setIsResizing(false)}
+            handle={<ResizeHandle active={isResizing} />}
+            onResize={handleResizing}
           >
-            <div>
-              <input
-                type="checkbox"
-                id="wrap-lines"
-                name="wrap-lines"
-                tw="mr-2"
-                checked={wrapLongLines}
-                onChange={() => setWrapLongLines(!wrapLongLines)}
-              />
-              <label htmlFor="wrap-lines">Wrap long lines</label>
-            </div>
-            <div>
-              <input
-                type="checkbox"
-                id="line-numbers"
-                name="line-numbers"
-                tw="mr-2"
-                checked={showLineNumbers}
-                onChange={() => setShowLineNumbers(!showLineNumbers)}
-              />
-              <label htmlFor="line-numbers">Show line numbers</label>
-            </div>
-            <div>
-              <label htmlFor="language">Style:</label>
-              <select
-                id="style"
-                name="style"
-                value={selectedStyle}
-                // @ts-ignore
-                onChange={(e) => setSelectedStyle(e.target.value)}
+            <div tw="flex flex-col w-full h-full border rounded shadow-xl border-gray-300 shadow-lg overflow-hidden">
+              <div
+                className="handle"
+                css={[
+                  tw`flex flex-row items-center justify-between px-4 py-2 bg-white border-b border-gray-300`,
+                  isDragging
+                    ? tw`hover:cursor-[grabbing]`
+                    : tw`hover:cursor-[grab]`,
+                ]}
               >
-                {Object.keys(SyntaxStyles).map((styleKey) => (
-                  <option key={styleKey} value={styleKey}>
-                    {styleKey}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="language">Language:</label>
-              <select
-                id="language"
-                name="language"
-                value={selectedLanguage}
+                <div>
+                  <input
+                    type="checkbox"
+                    id="wrap-lines"
+                    name="wrap-lines"
+                    tw="mr-2"
+                    checked={wrapLongLines}
+                    onChange={() => setWrapLongLines(!wrapLongLines)}
+                  />
+                  <label htmlFor="wrap-lines">Wrap long lines</label>
+                </div>
+                <div>
+                  <input
+                    type="checkbox"
+                    id="line-numbers"
+                    name="line-numbers"
+                    tw="mr-2"
+                    checked={showLineNumbers}
+                    onChange={() => setShowLineNumbers(!showLineNumbers)}
+                  />
+                  <label htmlFor="line-numbers">Show line numbers</label>
+                </div>
+                <div>
+                  <label htmlFor="language">Style:</label>
+                  <select
+                    id="style"
+                    name="style"
+                    value={selectedStyle}
+                    // @ts-ignore
+                    onChange={(e) => setSelectedStyle(e.target.value)}
+                  >
+                    {Object.keys(SyntaxStyles).map((styleKey) => (
+                      <option key={styleKey} value={styleKey}>
+                        {styleKey}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="language">Language:</label>
+                  <select
+                    id="language"
+                    name="language"
+                    value={selectedLanguage}
+                    // @ts-ignore
+                    onChange={(e) => setSelectedLanguage(e.target.value)}
+                  >
+                    {SyntaxDefault.supportedLanguages.map((lang) => (
+                      <option key={lang} value={lang}>
+                        {lang}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <IoIosMove tw="flex-shrink-0" />
+              </div>
+              <SyntaxHighlighter
+                tw="flex-1 p-4!"
+                language={selectedLanguage} // @TODO: customizable
+                wrapLines={wrapLongLines} // @TODO: customizable
+                wrapLongLines={wrapLongLines} // @TODO: customizable
+                showLineNumbers={showLineNumbers} // @TODO: customizable
                 // @ts-ignore
-                onChange={(e) => setSelectedLanguage(e.target.value)}
+                style={SyntaxStyles[selectedStyle]} // @TODO: customizable
               >
-                {SyntaxDefault.supportedLanguages.map((lang) => (
-                  <option key={lang} value={lang}>
-                    {lang}
-                  </option>
-                ))}
-              </select>
+                {data ? JSON.stringify(data, null, 2) : ""}
+              </SyntaxHighlighter>
             </div>
-            <IoIosMove />
-          </div>
-          <SyntaxHighlighter
-            tw="flex-1 p-4!"
-            language={selectedLanguage} // @TODO: customizable
-            wrapLines={wrapLongLines} // @TODO: customizable
-            wrapLongLines={wrapLongLines} // @TODO: customizable
-            showLineNumbers={showLineNumbers} // @TODO: customizable
-            // @ts-ignore
-            style={SyntaxStyles[selectedStyle]} // @TODO: customizable
-          >
-            {data ? JSON.stringify(data, null, 2) : ""}
-          </SyntaxHighlighter>
-        </div>
-      </ResizableBox>
-    </Draggable>
-  );
+          </ResizableBox>
+        </Draggable>,
+        portalEl
+      )
+    : null;
 };
 
 interface ResizeHandleProps {
@@ -193,6 +207,5 @@ interface ResizeHandleProps {
 const ResizeHandle = styled(IoMdResize)<ResizeHandleProps>`
   ${tw`text-white absolute right-0 bottom-0 mr-5 mb-5 transform rotate-90 hover:cursor-[nwse-resize]`}
 `;
-// ${({ active }) => active ? tw`hover:cursor-[grabbing]` : tw`hover:cursor-[grab]`}
 
 export default OnScreenConsole;
