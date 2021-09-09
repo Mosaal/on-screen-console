@@ -1,8 +1,8 @@
-import React, { FC, useState } from "react";
+import React, { FC, useEffect, useState } from "react";
 import tw, { styled } from "twin.macro";
 
-import Draggable from "react-draggable";
-import { ResizableBox } from "react-resizable";
+import Draggable, { DraggableData, DraggableEvent } from "react-draggable";
+import { ResizableBox, ResizeCallbackData } from "react-resizable";
 
 import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
 import * as SyntaxStyles from "react-syntax-highlighter/dist/esm/styles/hljs";
@@ -10,32 +10,98 @@ import SyntaxDefault from "react-syntax-highlighter/dist/esm/default-highlight";
 
 import { IoIosMove, IoMdResize } from "react-icons/io";
 
-export interface OnScreenConsoleProps {
-  data?: any;
+const EVENT_NAME = "update-on-screen-console-data";
+
+export const DEFAULT_WINDOW_POSITION: WindowPosition = { x: 20, y: 20 };
+export const DEFAULT_WINDOW_SIZE: WindowSize = { width: 600, height: 600 };
+export const DEFAULT_MINIUM_WINDOW_SIZE: WindowSize = {
+  width: 500,
+  height: 500,
+};
+
+export const writeDataToConsole = (data: any) => {
+  document.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: data }));
+};
+
+export interface WindowSize {
+  width: number;
+  height: number;
 }
 
-const OnScreenConsole: FC<OnScreenConsoleProps> = ({ data }) => {
+export interface WindowPosition {
+  x: number;
+  y: number;
+}
+
+export interface OnScreenConsoleProps {
+  minimumSize?: WindowSize;
+  initialSize?: WindowSize;
+  initialPosition?: WindowPosition;
+}
+
+const OnScreenConsole: FC<OnScreenConsoleProps> = ({
+  minimumSize = DEFAULT_MINIUM_WINDOW_SIZE,
+  initialSize,
+  initialPosition,
+}) => {
+  const [data, setData] = useState<any>(null);
+
+  const updateData = (e: CustomEvent) => {
+    setData(e.detail);
+  };
+
+  useEffect(() => {
+    document.addEventListener(EVENT_NAME, updateData as EventListener);
+    return () => {
+      document.removeEventListener(EVENT_NAME, updateData as EventListener);
+    };
+  }, []);
+
+  const [currentSize, setCurrentSize] = useState<WindowSize>(
+    initialSize || DEFAULT_WINDOW_SIZE
+  );
+  const [currentPosition, setCurrentPosition] = useState<WindowPosition>(
+    initialPosition || DEFAULT_WINDOW_POSITION
+  );
+
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isResizing, setIsResizing] = useState<boolean>(false);
+
   const [wrapLongLines, setWrapLongLines] = useState<boolean>(false);
   const [showLineNumbers, setShowLineNumbers] = useState<boolean>(false);
+
   const [selectedStyle, setSelectedStyle] = useState<string>("monokaiSublime");
   const [selectedLanguage, setSelectedLanguage] =
     useState<string>("javascript");
 
+  const handleDragging = (e: DraggableEvent, data: DraggableData) => {
+    setCurrentPosition({ x: data.x, y: data.y });
+  };
+
+  const handleResizing = (
+    e: React.SyntheticEvent<Element, Event>,
+    data: ResizeCallbackData
+  ) => {
+    setCurrentSize({ width: data.size.width, height: data.size.height });
+  };
+
   return (
     <Draggable
       handle=".handle"
+      position={currentPosition}
       onStart={() => setIsDragging(true)}
       onStop={() => setIsDragging(false)}
+      // @ts-ignore
+      onDrag={handleDragging}
     >
       <ResizableBox
-        width={600} // @TODO: customizable
-        height={400} // @TODO: customizable
-        minConstraints={[600, 300]} // @TODO: customizable
+        width={currentSize.width} // @TODO: customizable
+        height={currentSize.height} // @TODO: customizable
+        minConstraints={[minimumSize.width, minimumSize.height]} // @TODO: customizable
         onResizeStart={() => setIsResizing(true)}
         onResizeStop={() => setIsResizing(false)}
         handle={<ResizeHandle active={isResizing} />}
+        onResize={handleResizing}
       >
         <div tw="flex flex-col w-full h-full border rounded shadow-xl border-gray-300 overflow-hidden">
           <div
@@ -104,7 +170,7 @@ const OnScreenConsole: FC<OnScreenConsoleProps> = ({ data }) => {
             <IoIosMove />
           </div>
           <SyntaxHighlighter
-            tw="flex-1"
+            tw="flex-1 p-4!"
             language={selectedLanguage} // @TODO: customizable
             wrapLines={wrapLongLines} // @TODO: customizable
             wrapLongLines={wrapLongLines} // @TODO: customizable
@@ -112,7 +178,7 @@ const OnScreenConsole: FC<OnScreenConsoleProps> = ({ data }) => {
             // @ts-ignore
             style={SyntaxStyles[selectedStyle]} // @TODO: customizable
           >
-            {JSON.stringify(data, null, 2)}
+            {data ? JSON.stringify(data, null, 2) : ""}
           </SyntaxHighlighter>
         </div>
       </ResizableBox>
@@ -125,9 +191,8 @@ interface ResizeHandleProps {
 }
 
 const ResizeHandle = styled(IoMdResize)<ResizeHandleProps>`
-  ${tw`text-white absolute right-0 bottom-0 mr-5 mb-5 transform rotate-90`}
-  ${({ active }) =>
-    active ? tw`hover:cursor-[grabbing]` : tw`hover:cursor-[grab]`}
+  ${tw`text-white absolute right-0 bottom-0 mr-5 mb-5 transform rotate-90 hover:cursor-[nwse-resize]`}
 `;
+// ${({ active }) => active ? tw`hover:cursor-[grabbing]` : tw`hover:cursor-[grab]`}
 
 export default OnScreenConsole;
